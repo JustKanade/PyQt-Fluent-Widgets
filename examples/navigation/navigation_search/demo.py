@@ -48,8 +48,19 @@ class NavigationSearchDemo(QWidget):
             self, 
             showMenuButton=True,
             showReturnButton=True,
-            searchEnabled=True  # Enable search functionality
+            searchEnabled=True,  # Enable search functionality
+            searchBoxWidth=300,  # Custom search box width
+            searchCenterAlign=True,  # Center align search box
+            searchAnimationDuration=250  # Animation duration
         )
+        
+        # You can also configure these dynamically:
+        # self.navigationInterface.setSearchBoxWidth(320)
+        # self.navigationInterface.setSearchCenterAlign(False)
+        # self.navigationInterface.setSearchAnimationDuration(300)
+        
+        # Customize search button tooltip (optional)
+        # self.navigationInterface.setSearchButtonToolTip('Quick search')
         
         # Create stacked widget for pages
         self.stackedWidget = QStackedWidget(self)

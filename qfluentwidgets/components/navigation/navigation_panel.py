@@ -63,7 +63,8 @@ class NavigationPanel(QFrame):
 
     displayModeChanged = pyqtSignal(NavigationDisplayMode)
 
-    def __init__(self, parent=None, isMinimalEnabled=False, searchEnabled=False):
+    def __init__(self, parent=None, isMinimalEnabled=False, searchEnabled=False, 
+                 searchBoxWidth=280, searchCenterAlign=True, searchAnimationDuration=250):
         super().__init__(parent=parent)
         self._parent = parent   # type: QWidget
         self._isMenuButtonVisible = True
@@ -80,8 +81,13 @@ class NavigationPanel(QFrame):
         self.menuButton = NavigationToolButton(FIF.MENU, self)
         self.returnButton = NavigationToolButton(FIF.RETURN, self)
         
-        # Add search widget if enabled
-        self.searchWidget = NavigationSearchWidget(self) if searchEnabled else None
+        # Add search widget if enabled with custom parameters
+        self.searchWidget = NavigationSearchWidget(
+            self, 
+            searchBoxWidth=searchBoxWidth,
+            centerAlign=searchCenterAlign,
+            animationDuration=searchAnimationDuration
+        ) if searchEnabled else None
 
         self.vBoxLayout = NavigationItemLayout(self)
         self.topLayout = NavigationItemLayout()
@@ -424,6 +430,31 @@ class NavigationPanel(QFrame):
         """ set whether the return button is visible """
         self._isReturnButtonVisible = isVisible
         self.returnButton.setVisible(isVisible)
+    
+    def setSearchPlaceholderText(self, text: str):
+        """ set search box placeholder text for i18n support """
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.setPlaceholderText(text)
+    
+    def setSearchBoxWidth(self, width: int):
+        """ set search box width in expanded mode """
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.setSearchBoxWidth(width)
+    
+    def setSearchCenterAlign(self, center: bool):
+        """ set whether to center align the search box """
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.setCenterAlign(center)
+    
+    def setSearchAnimationDuration(self, duration: int):
+        """ set animation duration in milliseconds """
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.setAnimationDuration(duration)
+    
+    def setSearchButtonToolTip(self, text: str):
+        """ set search button tooltip text """
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.setSearchButtonToolTip(text)
 
     def setCollapsible(self, on: bool):
         self._isCollapsible = on

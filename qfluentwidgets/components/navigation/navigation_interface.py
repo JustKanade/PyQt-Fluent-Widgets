@@ -16,7 +16,8 @@ class NavigationInterface(QWidget):
 
     displayModeChanged = pyqtSignal(NavigationDisplayMode)
 
-    def __init__(self, parent=None, showMenuButton=True, showReturnButton=False, collapsible=True, searchEnabled=False):
+    def __init__(self, parent=None, showMenuButton=True, showReturnButton=False, collapsible=True, 
+                 searchEnabled=False, searchBoxWidth=280, searchCenterAlign=True, searchAnimationDuration=250):
         """
         Parameters
         ----------
@@ -34,9 +35,24 @@ class NavigationInterface(QWidget):
             
         searchEnabled: bool
             whether to enable search functionality
+            
+        searchBoxWidth: int
+            width of search box in expanded mode
+            
+        searchCenterAlign: bool
+            whether to center align the search box
+            
+        searchAnimationDuration: int
+            animation duration in milliseconds
         """
         super().__init__(parent=parent)
-        self.panel = NavigationPanel(self, searchEnabled=searchEnabled)
+        self.panel = NavigationPanel(
+            self, 
+            searchEnabled=searchEnabled,
+            searchBoxWidth=searchBoxWidth,
+            searchCenterAlign=searchCenterAlign,
+            searchAnimationDuration=searchAnimationDuration
+        )
         self.panel.setMenuButtonVisible(showMenuButton and collapsible)
         self.panel.setReturnButtonVisible(showReturnButton)
         self.panel.setCollapsible(collapsible)
@@ -241,6 +257,26 @@ class NavigationInterface(QWidget):
     def setReturnButtonVisible(self, isVisible: bool):
         """ set whether the return button is visible """
         self.panel.setReturnButtonVisible(isVisible)
+    
+    def setSearchPlaceholderText(self, text: str):
+        """ set search box placeholder text for i18n support """
+        self.panel.setSearchPlaceholderText(text)
+    
+    def setSearchBoxWidth(self, width: int):
+        """ set search box width in expanded mode """
+        self.panel.setSearchBoxWidth(width)
+    
+    def setSearchCenterAlign(self, center: bool):
+        """ set whether to center align the search box """
+        self.panel.setSearchCenterAlign(center)
+    
+    def setSearchAnimationDuration(self, duration: int):
+        """ set animation duration in milliseconds """
+        self.panel.setSearchAnimationDuration(duration)
+    
+    def setSearchButtonToolTip(self, text: str):
+        """ set search button tooltip text """
+        self.panel.setSearchButtonToolTip(text)
 
     def setCollapsible(self, collapsible: bool):
         self.panel.setCollapsible(collapsible)
