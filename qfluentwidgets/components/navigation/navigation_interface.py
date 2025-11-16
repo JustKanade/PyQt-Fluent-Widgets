@@ -16,7 +16,7 @@ class NavigationInterface(QWidget):
 
     displayModeChanged = pyqtSignal(NavigationDisplayMode)
 
-    def __init__(self, parent=None, showMenuButton=True, showReturnButton=False, collapsible=True):
+    def __init__(self, parent=None, showMenuButton=True, showReturnButton=False, collapsible=True, searchEnabled=False):
         """
         Parameters
         ----------
@@ -31,9 +31,12 @@ class NavigationInterface(QWidget):
 
         collapsible: bool
             Is the navigation interface collapsible
+            
+        searchEnabled: bool
+            whether to enable search functionality
         """
         super().__init__(parent=parent)
-        self.panel = NavigationPanel(self)
+        self.panel = NavigationPanel(self, searchEnabled=searchEnabled)
         self.panel.setMenuButtonVisible(showMenuButton and collapsible)
         self.panel.setReturnButtonVisible(showReturnButton)
         self.panel.setCollapsible(collapsible)

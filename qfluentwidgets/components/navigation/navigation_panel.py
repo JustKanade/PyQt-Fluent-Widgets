@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFrame, QApplication, QHBoxLay
 
 from .navigation_widget import (NavigationTreeWidgetBase, NavigationToolButton, NavigationWidget, NavigationSeparator,
                                 NavigationTreeWidget, NavigationFlyoutMenu)
+from .navigation_search import NavigationSearchWidget
 from ..widgets.acrylic_label import AcrylicBrush
 from ..widgets.scroll_area import ScrollArea
 from ..widgets.tool_tip import ToolTipFilter
@@ -62,13 +63,14 @@ class NavigationPanel(QFrame):
 
     displayModeChanged = pyqtSignal(NavigationDisplayMode)
 
-    def __init__(self, parent=None, isMinimalEnabled=False):
+    def __init__(self, parent=None, isMinimalEnabled=False, searchEnabled=False):
         super().__init__(parent=parent)
         self._parent = parent   # type: QWidget
         self._isMenuButtonVisible = True
         self._isReturnButtonVisible = False
         self._isCollapsible = True
         self._isAcrylicEnabled = False
+        self._isSearchEnabled = searchEnabled
 
         self.acrylicBrush = AcrylicBrush(self, 30)
 
@@ -77,6 +79,9 @@ class NavigationPanel(QFrame):
 
         self.menuButton = NavigationToolButton(FIF.MENU, self)
         self.returnButton = NavigationToolButton(FIF.RETURN, self)
+        
+        # Add search widget if enabled
+        self.searchWidget = NavigationSearchWidget(self) if searchEnabled else None
 
         self.vBoxLayout = NavigationItemLayout(self)
         self.topLayout = NavigationItemLayout()
@@ -119,6 +124,10 @@ class NavigationPanel(QFrame):
         self.expandAni.finished.connect(self._onExpandAniFinished)
         self.history.emptyChanged.connect(self.returnButton.setDisabled)
         self.returnButton.clicked.connect(self.history.pop)
+        
+        # Connect search widget signals
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.itemClicked.connect(self._onSearchItemClicked)
 
         # add tool tip
         self.returnButton.installEventFilter(ToolTipFilter(self.returnButton, 1000))
@@ -154,6 +163,10 @@ class NavigationPanel(QFrame):
 
         self.topLayout.addWidget(self.returnButton, 0, Qt.AlignTop)
         self.topLayout.addWidget(self.menuButton, 0, Qt.AlignTop)
+        
+        # Add search widget after menu button
+        if self._isSearchEnabled and self.searchWidget:
+            self.topLayout.addWidget(self.searchWidget, 0, Qt.AlignTop)
 
     def _updateAcrylicColor(self):
         if isDarkTheme():
@@ -347,6 +360,13 @@ class NavigationPanel(QFrame):
         if tooltip:
             widget.setToolTip(tooltip)
             widget.installEventFilter(NavigationToolTipFilter(widget, 1000))
+        
+        # Add to search widget if enabled
+        if self._isSearchEnabled and self.searchWidget:
+            # Get text from widget
+            text = getattr(widget, 'text', lambda: '')() or routeKey
+            icon = getattr(widget, 'icon', lambda: None)()
+            self.searchWidget.addItem(routeKey, text, icon)
 
     def _insertWidgetToLayout(self, index: int, widget: NavigationWidget, position: NavigationItemPosition):
         """ insert widget to layout """
@@ -372,6 +392,10 @@ class NavigationPanel(QFrame):
         """
         if routeKey not in self.items:
             return
+        
+        # Remove from search widget
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.removeItem(routeKey)
 
         item = self.items.pop(routeKey)
 
@@ -510,6 +534,16 @@ class NavigationPanel(QFrame):
         for k, item in self.items.items():
             item.widget.setSelected(k == routeKey)
 
+    def _onSearchItemClicked(self, routeKey: str, text: str):
+        """ Handle search result item click """
+        if routeKey in self.items:
+            widget = self.items[routeKey].widget
+            # Simulate widget click (NavigationWidget.clicked expects a bool)
+            widget.clicked.emit(True)
+            # Clear search after selection
+            if self.searchWidget:
+                self.searchWidget.searchBox.searchEdit.clear()
+    
     def _onWidgetClicked(self):
         widget = self.sender()  # type: NavigationWidget
         if not widget.isSelectable:
@@ -600,12 +634,20 @@ class NavigationPanel(QFrame):
             self.hide()
             self.setProperty('menu', False)
             self.setStyle(QApplication.style())
+            # Hide search in minimal mode
+            if self._isSearchEnabled and self.searchWidget:
+                self.searchWidget.hide()
         elif self.displayMode == NavigationDisplayMode.COMPACT:
             self.setProperty('menu', False)
             self.setStyle(QApplication.style())
 
             for item in self.items.values():
                 item.widget.setCompacted(True)
+            
+            # Show search button in compact mode
+            if self._isSearchEnabled and self.searchWidget:
+                self.searchWidget.show()
+                self.searchWidget.setCompact(True)
 
             if not self._parent.isWindow():
                 self.setParent(self._parent)
@@ -616,6 +658,10 @@ class NavigationPanel(QFrame):
         """ set whether the navigation widget is compacted """
         for item in self.findChildren(NavigationWidget):
             item.setCompacted(isCompacted)
+        
+        # Update search widget compact state
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.setCompact(isCompacted)
 
     def layoutMinHeight(self):
         th = self.topLayout.minimumSize().height()
