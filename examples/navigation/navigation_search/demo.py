@@ -45,19 +45,21 @@ class NavigationSearchDemo(QWidget):
         
         # Create navigation interface with search enabled
         self.navigationInterface = NavigationInterface(
-            self, 
+            self,
             showMenuButton=True,
             showReturnButton=True,
             searchEnabled=True,  # Enable search functionality
             searchBoxWidth=300,  # Custom search box width
             searchCenterAlign=True,  # Center align search box
-            searchAnimationDuration=250  # Animation duration
+            searchAnimationDuration=250,  # Animation duration
+            # searchIcon=FIF.ZOOM  # Custom search icon (optional)
         )
         
         # You can also configure these dynamically:
         # self.navigationInterface.setSearchBoxWidth(320)
         # self.navigationInterface.setSearchCenterAlign(False)
         # self.navigationInterface.setSearchAnimationDuration(300)
+        # self.navigationInterface.setSearchButtonIcon(FIF.FILTER)
         
         # Customize search button tooltip (optional)
         # self.navigationInterface.setSearchButtonToolTip('Quick search')

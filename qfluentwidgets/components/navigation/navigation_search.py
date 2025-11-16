@@ -1,5 +1,5 @@
 # coding:utf-8
-from typing import Dict
+from typing import Dict, Union
 
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, pyqtSignal, QEasingCurve, QStringListModel
 from PyQt5.QtGui import QIcon
@@ -108,7 +108,8 @@ class NavigationSearchWidget(QWidget):
 
     itemClicked = pyqtSignal(str, str)  # routeKey, text
 
-    def __init__(self, parent=None, searchBoxWidth=280, centerAlign=True, animationDuration=250):
+    def __init__(self, parent=None, searchBoxWidth=280, centerAlign=True, animationDuration=250,
+                 searchIcon: Union[str, QIcon, FluentIconBase] = None):
         """
         Parameters
         ----------
@@ -123,6 +124,9 @@ class NavigationSearchWidget(QWidget):
 
         animationDuration: int
             animation duration in milliseconds
+
+        searchIcon: str | QIcon | FluentIconBase
+            custom search icon, defaults to FIF.SEARCH if None
         """
         super().__init__(parent)
         self._isCompact = True
@@ -130,8 +134,9 @@ class NavigationSearchWidget(QWidget):
         self._centerAlign = centerAlign
         self._animationDuration = animationDuration
         self._fromSearchButton = False
+        self._searchIcon = searchIcon or FIF.SEARCH
 
-        self.searchButton = NavigationToolButton(FIF.SEARCH, self)
+        self.searchButton = NavigationToolButton(self._searchIcon, self)
         self.searchBox = NavigationSearchBox(self)
 
         self.opacityEffect = QGraphicsOpacityEffect(self.searchBox)
@@ -319,3 +324,8 @@ class NavigationSearchWidget(QWidget):
     def setSearchButtonToolTip(self, text: str):
         """ set search button tooltip text """
         self.searchButton.setToolTip(text)
+
+    def setSearchButtonIcon(self, icon: Union[str, QIcon, FluentIconBase]):
+        """ set search button icon """
+        self._searchIcon = icon
+        self.searchButton.setIcon(icon)

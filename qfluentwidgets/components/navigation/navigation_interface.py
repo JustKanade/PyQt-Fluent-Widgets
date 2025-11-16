@@ -16,8 +16,9 @@ class NavigationInterface(QWidget):
 
     displayModeChanged = pyqtSignal(NavigationDisplayMode)
 
-    def __init__(self, parent=None, showMenuButton=True, showReturnButton=False, collapsible=True, 
-                 searchEnabled=False, searchBoxWidth=280, searchCenterAlign=True, searchAnimationDuration=250):
+    def __init__(self, parent=None, showMenuButton=True, showReturnButton=False, collapsible=True,
+                 searchEnabled=False, searchBoxWidth=280, searchCenterAlign=True, searchAnimationDuration=250,
+                 searchIcon=None):
         """
         Parameters
         ----------
@@ -44,14 +45,18 @@ class NavigationInterface(QWidget):
             
         searchAnimationDuration: int
             animation duration in milliseconds
+
+        searchIcon: str | QIcon | FluentIconBase
+            custom search icon, defaults to FIF.SEARCH if None
         """
         super().__init__(parent=parent)
         self.panel = NavigationPanel(
-            self, 
+            self,
             searchEnabled=searchEnabled,
             searchBoxWidth=searchBoxWidth,
             searchCenterAlign=searchCenterAlign,
-            searchAnimationDuration=searchAnimationDuration
+            searchAnimationDuration=searchAnimationDuration,
+            searchIcon=searchIcon
         )
         self.panel.setMenuButtonVisible(showMenuButton and collapsible)
         self.panel.setReturnButtonVisible(showReturnButton)
@@ -277,6 +282,10 @@ class NavigationInterface(QWidget):
     def setSearchButtonToolTip(self, text: str):
         """ set search button tooltip text """
         self.panel.setSearchButtonToolTip(text)
+
+    def setSearchButtonIcon(self, icon):
+        """ set search button icon """
+        self.panel.setSearchButtonIcon(icon)
 
     def setCollapsible(self, collapsible: bool):
         self.panel.setCollapsible(collapsible)

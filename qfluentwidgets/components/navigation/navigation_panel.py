@@ -63,8 +63,9 @@ class NavigationPanel(QFrame):
 
     displayModeChanged = pyqtSignal(NavigationDisplayMode)
 
-    def __init__(self, parent=None, isMinimalEnabled=False, searchEnabled=False, 
-                 searchBoxWidth=280, searchCenterAlign=True, searchAnimationDuration=250):
+    def __init__(self, parent=None, isMinimalEnabled=False, searchEnabled=False,
+                 searchBoxWidth=280, searchCenterAlign=True, searchAnimationDuration=250,
+                 searchIcon=None):
         super().__init__(parent=parent)
         self._parent = parent   # type: QWidget
         self._isMenuButtonVisible = True
@@ -83,10 +84,11 @@ class NavigationPanel(QFrame):
         
         # Add search widget if enabled with custom parameters
         self.searchWidget = NavigationSearchWidget(
-            self, 
+            self,
             searchBoxWidth=searchBoxWidth,
             centerAlign=searchCenterAlign,
-            animationDuration=searchAnimationDuration
+            animationDuration=searchAnimationDuration,
+            searchIcon=searchIcon
         ) if searchEnabled else None
 
         self.vBoxLayout = NavigationItemLayout(self)
@@ -455,6 +457,11 @@ class NavigationPanel(QFrame):
         """ set search button tooltip text """
         if self._isSearchEnabled and self.searchWidget:
             self.searchWidget.setSearchButtonToolTip(text)
+
+    def setSearchButtonIcon(self, icon):
+        """ set search button icon """
+        if self._isSearchEnabled and self.searchWidget:
+            self.searchWidget.setSearchButtonIcon(icon)
 
     def setCollapsible(self, on: bool):
         self._isCollapsible = on
