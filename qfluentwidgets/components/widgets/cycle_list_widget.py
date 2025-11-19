@@ -1,7 +1,7 @@
 # coding:utf-8
 from typing import Iterable
 
-from PyQt5.QtCore import Qt, pyqtSignal, QSize, QEvent, QRectF
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QEvent, QRectF, QEasingCurve, QTime
 from PyQt5.QtGui import QPainter
 from PyQt5.QtWidgets import QListWidget, QListWidgetItem, QToolButton
 
@@ -77,6 +77,8 @@ class CycleListWidget(QListWidget):
         self.downButton = ScrollButton(FluentIcon.CARE_DOWN_SOLID, self)
         self.scrollDuration = 250
         self.originItems = list(items)
+        self._lastScrollTime = QTime.currentTime()
+        self._scrollButtonRepeatEnabled = False
 
         self.vScrollBar = SmoothScrollBar(Qt.Vertical, self)
         self.visibleNumber = 9
@@ -98,11 +100,11 @@ class CycleListWidget(QListWidget):
         self.upButton.hide()
         self.downButton.hide()
 
-        self.upButton.clicked.connect(self.scrollUp)
-        self.downButton.clicked.connect(self.scrollDown)
         self.itemClicked.connect(self._onItemClicked)
-
         self.installEventFilter(self)
+
+        # enable auto-repeat by default
+        self.setScrollButtonRepeatEnabled(True)
 
     def setItems(self, items: list):
         """ set items in the list
@@ -190,13 +192,74 @@ class CycleListWidget(QListWidget):
         else:
             self.scrollUp()
 
+    def setScrollButtonRepeatEnabled(self, isEnabled: bool):
+        """ set whether to enable scroll button auto repeat """
+        if self._scrollButtonRepeatEnabled == isEnabled:
+            return
+
+        self._scrollButtonRepeatEnabled = isEnabled
+        self.upButton.setAutoRepeat(isEnabled)
+        self.downButton.setAutoRepeat(isEnabled)
+
+        if isEnabled:
+            self.upButton.setAutoRepeatDelay(500)
+            self.upButton.setAutoRepeatInterval(50)
+            self.downButton.setAutoRepeatDelay(500)
+            self.downButton.setAutoRepeatInterval(50)
+
+            # use pressed signal to achieve instant scrolling
+            try:
+                self.upButton.clicked.disconnect(self.scrollUp)
+                self.downButton.clicked.disconnect(self.scrollDown)
+            except TypeError:
+                pass
+
+            self.upButton.pressed.connect(self.scrollUp)
+            self.downButton.pressed.connect(self.scrollDown)
+        else:
+            # restore default behavior
+            try:
+                self.upButton.pressed.disconnect(self.scrollUp)
+                self.downButton.pressed.disconnect(self.scrollDown)
+            except TypeError:
+                pass
+
+            self.upButton.clicked.connect(self.scrollUp)
+            self.downButton.clicked.connect(self.scrollDown)
+
     def scrollDown(self):
         """ scroll down an item """
+        t = QTime.currentTime()
+        elapsed = self._lastScrollTime.msecsTo(t)
+        self._lastScrollTime = t
+
+        if self.downButton.isDown() and elapsed < 200:
+            duration = 100
+            easing = QEasingCurve.Linear
+        else:
+            duration = 250
+            easing = QEasingCurve.OutQuad
+
+        self.vScrollBar.setScrollAnimation(duration, easing)
+
         self.setCurrentIndex(self.currentIndex() + 1)
         self.scrollToItem(self.currentItem())
 
     def scrollUp(self):
         """ scroll up an item """
+        t = QTime.currentTime()
+        elapsed = self._lastScrollTime.msecsTo(t)
+        self._lastScrollTime = t
+
+        if self.upButton.isDown() and elapsed < 200:
+            duration = 100
+            easing = QEasingCurve.Linear
+        else:
+            duration = 250
+            easing = QEasingCurve.OutQuad
+
+        self.vScrollBar.setScrollAnimation(duration, easing)
+
         self.setCurrentIndex(self.currentIndex() - 1)
         self.scrollToItem(self.currentItem())
 
