@@ -740,6 +740,8 @@ class NavigationPanel(QFrame):
             self.setProperty('menu', False)
             self.setStyle(QApplication.style())
 
+            # Stop indicator animation to prevent misalignment when header collapses
+            self._stopIndicatorAnimation()
             self._setWidgetCompacted(True)
 
             if not self._parent.isWindow():
