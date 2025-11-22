@@ -1,9 +1,20 @@
 # coding:utf-8
+from enum import Enum
 from typing import List
 
 from PyQt5.QtCore import (QAbstractAnimation, QEasingCurve, QPoint, QPropertyAnimation,
-                          pyqtSignal)
+                          pyqtSignal, QParallelAnimationGroup)
 from PyQt5.QtWidgets import QGraphicsOpacityEffect, QStackedWidget, QWidget
+
+
+class TransitionType(Enum):
+    """ Transition type """
+    DEFAULT = 0
+    ENTRANCE = 1
+    DRILL_IN = 2
+    SUPPRESS = 3
+    SLIDE_FROM_RIGHT = 4
+    SLIDE_FROM_LEFT = 5
 
 
 class OpacityAniStackedWidget(QStackedWidget):
@@ -208,4 +219,175 @@ class PopUpAniStackedWidget(QStackedWidget):
         """ animation finished slot """
         self._ani.disconnect()
         super().setCurrentIndex(self._nextIndex)
+        self.aniFinished.emit()
+
+
+class TransitionStackedWidget(QStackedWidget):
+    """ Stacked widget with various transition animations """
+
+    aniFinished = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._ani = None
+        self._nextIndex = 0
+        self.isAnimationEnabled = True
+
+    def setCurrentIndex(self, index: int, transition=TransitionType.ENTRANCE, duration=250):
+        """ set current widget with transition animation
+
+        Parameters
+        ----------
+        index: int
+            the index of widget to display
+
+        transition: TransitionType
+            transition type
+
+        duration: int
+            animation duration
+        """
+        if index < 0 or index >= self.count():
+            return
+
+        if index == self.currentIndex():
+            return
+
+        if not self.isAnimationEnabled or transition == TransitionType.SUPPRESS:
+            super().setCurrentIndex(index)
+            return
+
+        # Clean previous animation
+        if self._ani and self._ani.state() == QAbstractAnimation.Running:
+            self._ani.stop()
+            self.__onAniFinished()
+
+        self._nextIndex = index
+        currentWidget = self.currentWidget()
+        nextWidget = self.widget(index)
+        
+        if not currentWidget or not nextWidget:
+            super().setCurrentIndex(index)
+            return
+
+        # Initialize effects
+        self.__ensureEffect(currentWidget)
+        self.__ensureEffect(nextWidget)
+
+        # Create animation group
+        self._ani = QParallelAnimationGroup(self)
+        
+        # Setup animation based on type
+        if transition in [TransitionType.ENTRANCE, TransitionType.DEFAULT]:
+            self.__setEntranceAnimation(currentWidget, nextWidget, duration)
+        elif transition == TransitionType.DRILL_IN:
+            self.__setDrillInAnimation(currentWidget, nextWidget, duration)
+        elif transition == TransitionType.SLIDE_FROM_RIGHT:
+            self.__setSlideAnimation(currentWidget, nextWidget, duration, fromRight=True)
+        elif transition == TransitionType.SLIDE_FROM_LEFT:
+            self.__setSlideAnimation(currentWidget, nextWidget, duration, fromRight=False)
+        
+        self._ani.finished.connect(self.__onAniFinished)
+        self._ani.start()
+
+    def setCurrentWidget(self, w: QWidget, transition=TransitionType.ENTRANCE, duration=250):
+        """ set current widget with transition animation """
+        self.setCurrentIndex(self.indexOf(w), transition, duration)
+
+    def __ensureEffect(self, widget: QWidget):
+        """ ensure widget has opacity effect """
+        if not widget.graphicsEffect():
+            effect = QGraphicsOpacityEffect(widget)
+            widget.setGraphicsEffect(effect)
+
+    def __setEntranceAnimation(self, current: QWidget, next_: QWidget, duration: int):
+        """ set entrance animation """
+        # Ensure next widget is visible
+        next_.resize(self.size())
+        next_.show()
+        next_.raise_()
+        
+        # Fix position in case it was moved by previous animation
+        next_.move(0, 0)
+
+        # Fade in
+        next_.graphicsEffect().setOpacity(0)
+        ani1 = QPropertyAnimation(next_.graphicsEffect(), b"opacity", self)
+        ani1.setStartValue(0)
+        ani1.setEndValue(1)
+        ani1.setDuration(duration)
+        ani1.setEasingCurve(QEasingCurve.OutQuad)
+        
+        # Slide up
+        offset = 28
+        pos = next_.pos()
+        ani2 = QPropertyAnimation(next_, b"pos", self)
+        ani2.setStartValue(pos + QPoint(0, offset))
+        ani2.setEndValue(pos)
+        ani2.setDuration(duration)
+        ani2.setEasingCurve(QEasingCurve.OutCubic)
+        
+        self._ani.addAnimation(ani1)
+        self._ani.addAnimation(ani2)
+
+    def __setDrillInAnimation(self, current: QWidget, next_: QWidget, duration: int):
+        """ set drill in animation """
+        next_.resize(self.size())
+        next_.show()
+        next_.raise_()
+
+        # Fade in
+        next_.graphicsEffect().setOpacity(0)
+        ani1 = QPropertyAnimation(next_.graphicsEffect(), b"opacity", self)
+        ani1.setStartValue(0)
+        ani1.setEndValue(1)
+        ani1.setDuration(duration)
+        ani1.setEasingCurve(QEasingCurve.OutQuad)
+        
+        # Fade out current
+        ani2 = QPropertyAnimation(current.graphicsEffect(), b"opacity", self)
+        ani2.setStartValue(1)
+        ani2.setEndValue(0)
+        ani2.setDuration(duration)
+        ani2.setEasingCurve(QEasingCurve.OutQuad)
+
+        self._ani.addAnimation(ani1)
+        self._ani.addAnimation(ani2)
+
+    def __setSlideAnimation(self, current: QWidget, next_: QWidget, duration: int, fromRight: bool):
+        """ set slide animation """
+        next_.resize(self.size())
+        next_.show()
+        next_.raise_()
+        
+        width = self.width()
+        startX = width if fromRight else -width
+        endX = -width // 2 if fromRight else width // 2
+        
+        # Next widget slide in
+        ani1 = QPropertyAnimation(next_, b"pos", self)
+        ani1.setStartValue(QPoint(startX, 0))
+        ani1.setEndValue(QPoint(0, 0))
+        ani1.setDuration(duration)
+        ani1.setEasingCurve(QEasingCurve.OutQuint)
+        
+        # Current widget slide out (parallax)
+        ani2 = QPropertyAnimation(current, b"pos", self)
+        ani2.setStartValue(current.pos())
+        ani2.setEndValue(QPoint(endX, 0))
+        ani2.setDuration(duration)
+        ani2.setEasingCurve(QEasingCurve.OutQuint)
+        
+        # Reset opacity
+        current.graphicsEffect().setOpacity(1)
+        next_.graphicsEffect().setOpacity(1)
+        
+        self._ani.addAnimation(ani1)
+        self._ani.addAnimation(ani2)
+
+    def __onAniFinished(self):
+        """ animation finished slot """
+        self._ani.disconnect()
+        super().setCurrentIndex(self._nextIndex)
+        self.widget(self._nextIndex).graphicsEffect().setOpacity(1)
         self.aniFinished.emit()
