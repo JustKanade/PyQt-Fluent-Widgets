@@ -575,6 +575,10 @@ class NavigationPanel(QFrame):
         if newItem == prevItem:
             return
 
+        # If target is same as pending animation target, do nothing
+        if self._pendingIndicatorWidget == newItem:
+            return
+
         # Determine start widget for animation (proxy for hidden child)
         startWidget = prevItem
         if prevItem and not prevItem.isVisible():
@@ -598,13 +602,23 @@ class NavigationPanel(QFrame):
         newItem.setIndicatorVisible(False)
 
         if startWidget and startWidget.isVisible() and newItem.isVisible() and self.isVisible():
-            # Check if we need CrossFade (level change or using proxy)
+            # Check if we need CrossFade (level change, using proxy, or large distance)
             useCrossFade = False
             if startWidget != prevItem:
                 useCrossFade = True
             elif hasattr(prevItem, 'nodeDepth') and hasattr(newItem, 'nodeDepth'):
                  if prevItem.nodeDepth != newItem.nodeDepth:
                      useCrossFade = True
+            
+            # Check distance for large gaps
+            if not useCrossFade:
+                startRect = self._getIndicatorRect(startWidget)
+                endRect = self._getIndicatorRect(newItem)
+                
+                dist = abs(startRect.y() - endRect.y())
+                
+                if dist > 200:
+                    useCrossFade = True
 
             self._startIndicatorAnimation(startWidget, newItem, useCrossFade)
         else:
