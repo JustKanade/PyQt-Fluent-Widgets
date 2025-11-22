@@ -1,7 +1,8 @@
 # coding:utf-8
 import os
 import sys
-
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from PyQt5.QtCore import Qt, QTranslator
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication
