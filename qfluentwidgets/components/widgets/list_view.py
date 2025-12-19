@@ -32,7 +32,7 @@ class ListBase:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.delegate = ListItemDelegate(self)
-        self.scrollDelegate = SmoothScrollDelegate(self)
+        self.scrollDelegate = SmoothScrollDelegate(self, True)
         self._isSelectRightClickedRow = False
 
         FluentStyleSheet.LIST_VIEW.apply(self)

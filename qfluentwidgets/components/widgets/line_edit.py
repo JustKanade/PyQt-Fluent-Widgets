@@ -452,7 +452,7 @@ class TextEdit(QTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.layer = EditLayer(self)
-        self.scrollDelegate = SmoothScrollDelegate(self)
+        self.scrollDelegate = SmoothScrollDelegate(self, True)
         FluentStyleSheet.LINE_EDIT.apply(self)
         setFont(self)
 
@@ -467,7 +467,7 @@ class PlainTextEdit(QPlainTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.layer = EditLayer(self)
-        self.scrollDelegate = SmoothScrollDelegate(self)
+        self.scrollDelegate = SmoothScrollDelegate(self, True)
         FluentStyleSheet.LINE_EDIT.apply(self)
         setFont(self)
 
@@ -482,7 +482,7 @@ class TextBrowser(QTextBrowser):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layer = EditLayer(self)
-        self.scrollDelegate = SmoothScrollDelegate(self)
+        self.scrollDelegate = SmoothScrollDelegate(self, True)
         FluentStyleSheet.LINE_EDIT.apply(self)
         setFont(self)
 

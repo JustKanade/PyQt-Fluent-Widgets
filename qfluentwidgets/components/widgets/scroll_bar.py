@@ -526,14 +526,21 @@ class SmoothScrollBar(ScrollBar):
 
     def __init__(self, orient: Qt.Orientation, parent):
         super().__init__(orient, parent)
-        self.duration = 500
+        self.duration = 300
         self.ani = QPropertyAnimation()
         self.ani.setTargetObject(self)
         self.ani.setPropertyName(b"val")
-        self.ani.setEasingCurve(QEasingCurve.OutCubic)
+        self.ani.setEasingCurve(QEasingCurve.OutSine)
         self.ani.setDuration(self.duration)
 
-        self.__value = self.value()
+        self._scrollValue = self.value()
+        self._speedLimit = 20
+
+        self.ani.finished.connect(self._onAniFinished)
+
+    def _onAniFinished(self):
+        """ sync scroll value when animation finished """
+        self._scrollValue = self.value()
 
     def setValue(self, value, useAni=True):
         if value == self.value():
@@ -544,47 +551,57 @@ class SmoothScrollBar(ScrollBar):
 
         if not useAni:
             self.val = value
+            self._scrollValue = value
             return
 
-        # adjust the duration
-        dv = abs(value - self.value())
-        if dv < 50:
-            self.ani.setDuration(int(self.duration * dv / 70))
-        else:
-            self.ani.setDuration(self.duration)
-
+        self.ani.setDuration(self.duration)
         self.ani.setStartValue(self.value())
         self.ani.setEndValue(value)
         self.ani.start()
 
     def scrollValue(self, value, useAni=True):
         """ scroll the specified distance """
-        self.__value += value
-        self.__value = max(self.minimum(), self.__value)
-        self.__value = min(self.maximum(), self.__value)
-        self.setValue(self.__value, useAni)
+        # sync scroll value if animation stopped
+        if self.ani.state() == QPropertyAnimation.Stopped:
+            self._scrollValue = self.value()
+
+        # limit scroll speed to prevent accumulation
+        if abs(self._scrollValue - self.value()) > abs(value) * self._speedLimit:
+            self._scrollValue = self.value()
+
+        self._scrollValue += value
+        self._scrollValue = max(self.minimum(), min(self._scrollValue, self.maximum()))
+
+        self.ani.stop()
+        self.ani.setDuration(self.duration)
+        self.ani.setStartValue(self.value())
+        self.ani.setEndValue(self._scrollValue)
+        self.ani.start()
 
     def scrollTo(self, value, useAni=True):
         """ scroll to the specified position """
-        self.__value = value
-        self.__value = max(self.minimum(), self.__value)
-        self.__value = min(self.maximum(), self.__value)
-        self.setValue(self.__value, useAni)
+        self._scrollValue = max(self.minimum(), min(value, self.maximum()))
+        self.setValue(self._scrollValue, useAni)
 
     def resetValue(self, value):
-        self.__value = value
+        self._scrollValue = value
 
     def mousePressEvent(self, e):
         self.ani.stop()
         super().mousePressEvent(e)
-        self.__value = self.value()
+        self._scrollValue = self.value()
+
+    def mouseReleaseEvent(self, e):
+        self.ani.stop()
+        super().mouseReleaseEvent(e)
+        self._scrollValue = self.value()
 
     def mouseMoveEvent(self, e):
         self.ani.stop()
         super().mouseMoveEvent(e)
-        self.__value = self.value()
+        self._scrollValue = self.value()
 
-    def setScrollAnimation(self, duration, easing=QEasingCurve.OutCubic):
+    def setScrollAnimation(self, duration, easing=QEasingCurve.OutSine):
         """ set scroll animation
 
         Parameters
@@ -598,6 +615,16 @@ class SmoothScrollBar(ScrollBar):
         self.duration = duration
         self.ani.setDuration(duration)
         self.ani.setEasingCurve(easing)
+
+    def setSpeedLimit(self, limit: int):
+        """ set scroll speed limit
+
+        Parameters
+        ----------
+        limit: int
+            max pending scroll distance multiplier
+        """
+        self._speedLimit = max(1, limit)
 
 
 class SmoothScrollDelegate(QObject):
@@ -633,11 +660,11 @@ class SmoothScrollDelegate(QObject):
 
     def eventFilter(self, obj, e: QEvent):
         if e.type() == QEvent.Type.Wheel:
-            # Check if the vertical scroll is at its limit
+            # check if the vertical scroll is at its limit
             verticalAtEnd = (e.angleDelta().y() < 0 and self.vScrollBar.value() == self.vScrollBar.maximum()) or \
                             (e.angleDelta().y() > 0 and self.vScrollBar.value() == self.vScrollBar.minimum())
 
-            # Check if the horizontal scroll is at its limit
+            # check if the horizontal scroll is at its limit
             horizontalAtEnd = (e.angleDelta().x() < 0 and self.hScrollBar.value() == self.hScrollBar.maximum()) or \
                               (e.angleDelta().x() > 0 and self.hScrollBar.value() == self.hScrollBar.minimum())
 

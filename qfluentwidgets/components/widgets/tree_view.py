@@ -150,7 +150,7 @@ class TreeViewBase:
     """ Tree view base class """
 
     def __init__(self, *args, **kwargs):
-        self.scrollDelagate = SmoothScrollDelegate(self)
+        self.scrollDelagate = SmoothScrollDelegate(self, True)
 
         self.header().setHighlightSections(False)
         self.header().setDefaultAlignment(Qt.AlignCenter)

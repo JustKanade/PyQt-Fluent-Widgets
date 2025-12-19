@@ -207,7 +207,7 @@ class TableBase:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.delegate = TableItemDelegate(self)
-        self.scrollDelagate = SmoothScrollDelegate(self)
+        self.scrollDelagate = SmoothScrollDelegate(self, True)
         self._isSelectRightClickedRow = False
 
         # set style sheet

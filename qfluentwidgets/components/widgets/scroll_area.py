@@ -102,7 +102,7 @@ class SmoothScrollArea(QScrollArea):
         super().__init__(parent)
         self.delegate = SmoothScrollDelegate(self, True)
 
-    def setScrollAnimation(self, orient, duration, easing=QEasingCurve.OutCubic):
+    def setScrollAnimation(self, orient, duration, easing=QEasingCurve.OutSine):
         """ set scroll animation
 
         Parameters
@@ -118,6 +118,20 @@ class SmoothScrollArea(QScrollArea):
         """
         bar = self.delegate.hScrollBar if orient == Qt.Horizontal else self.delegate.vScrollBar
         bar.setScrollAnimation(duration, easing)
+
+    def setSpeedLimit(self, orient, limit: int):
+        """ set scroll speed limit
+
+        Parameters
+        ----------
+        orient: Qt.Orientation
+            scroll orientation
+
+        limit: int
+            max pending scroll distance multiplier
+        """
+        bar = self.delegate.hScrollBar if orient == Qt.Horizontal else self.delegate.vScrollBar
+        bar.setSpeedLimit(limit)
 
     def enableTransparentBackground(self):
         self.setStyleSheet("QScrollArea{border: none; background: transparent}")

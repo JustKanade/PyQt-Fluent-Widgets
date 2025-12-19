@@ -63,7 +63,7 @@ class SmoothScroll:
         self.stepsTotal = self.fps * self.duration / 1000
 
         # get the moving distance corresponding to each event
-        delta = delta* self.stepRatio
+        delta = delta * self.stepRatio
         if self.acceleration > 0:
             delta += delta * self.acceleration * accerationRatio
 
