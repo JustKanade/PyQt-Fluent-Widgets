@@ -1,26 +1,14 @@
 # coding: utf-8
 from enum import Enum
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPainter, QColor
+from PyQt5.QtCore import Qt, QObject, pyqtProperty, QPropertyAnimation, QEasingCurve, QPointF
+from PyQt5.QtGui import QPainter, QColor, QPainterPath, QPen
 from PyQt5.QtWidgets import QCheckBox, QStyle, QStyleOptionButton, QWidget
 
-from ...common.icon import FluentIconBase, Theme, getIconColor
-from ...common.style_sheet import FluentStyleSheet, isDarkTheme, ThemeColor, themeColor, setCustomStyleSheet
+from ...common.style_sheet import FluentStyleSheet, isDarkTheme, ThemeColor, setCustomStyleSheet
 from ...common.overload import singledispatchmethod
 from ...common.color import fallbackThemeColor, validColor
 from ...common.font import setFont
-
-
-class CheckBoxIcon(FluentIconBase, Enum):
-    """ CheckBoxIcon """
-
-    ACCEPT = "Accept"
-    PARTIAL_ACCEPT = "PartialAccept"
-
-    def path(self, theme=Theme.AUTO):
-        c = getIconColor(theme, reverse=True)
-        return f':/qfluentwidgets/images/check_box/{self.value}_{c}.svg'
 
 
 class CheckBoxState(Enum):
@@ -34,6 +22,137 @@ class CheckBoxState(Enum):
     CHECKED_PRESSED = 5
     DISABLED = 6
     CHECKED_DISABLED = 7
+
+
+class _CheckBoxIndicatorAnimation(QObject):
+    """ CheckBox indicator animation """
+
+    checkInCurve = QEasingCurve(QEasingCurve.Type.BezierSpline)
+    checkInCurve.addCubicBezierSegment(QPointF(0.55, 0), QPointF(0, 1), QPointF(1, 1))
+    checkOutCurve = QEasingCurve(QEasingCurve.Type.BezierSpline)
+    checkOutCurve.addCubicBezierSegment(QPointF(0.167, 0.167), QPointF(0.833, 0.833), QPointF(1, 1))
+
+    def __init__(self, updateCallback, parent=None):
+        super().__init__(parent)
+        self.previousState = Qt.Unchecked
+        self.currentState = Qt.Unchecked
+        self._progress = 1
+        self._updateCallback = updateCallback
+        self.ani = QPropertyAnimation(self, b'progress', self)
+
+    def start(self, previousState, currentState):
+        self.previousState = previousState
+        self.currentState = currentState
+        self.ani.stop()
+
+        if previousState == Qt.Unchecked and currentState == Qt.Checked:
+            self._startAnimation(317)
+        elif previousState == Qt.Checked and currentState == Qt.Unchecked:
+            self._startAnimation(67)
+        else:
+            self.progress = 1
+
+    def _startAnimation(self, duration):
+        self.ani.setDuration(duration)
+        self.ani.setStartValue(0)
+        self.ani.setEndValue(1)
+        self.ani.setEasingCurve(QEasingCurve.Linear)
+        self.ani.start()
+
+    def value(self):
+        return self._progress
+
+    def setValue(self, progress):
+        self._progress = progress
+        self._updateCallback()
+
+    progress = pyqtProperty(float, value, setValue)
+
+
+def _checkBoxIconColor():
+    return QColor(Qt.black if isDarkTheme() else Qt.white)
+
+
+def _mapCheckPoint(rect, point):
+    return QPointF(rect.x() + point.x() * rect.width() / 48, rect.y() + point.y() * rect.height() / 48)
+
+
+def _drawPolyline(painter, rect, points, start=0, end=1):
+    if start >= end:
+        return
+
+    mapped = [_mapCheckPoint(rect, p) for p in points]
+    lens = [((mapped[i].x() - mapped[i - 1].x()) ** 2 + (mapped[i].y() - mapped[i - 1].y()) ** 2) ** 0.5
+            for i in range(1, len(mapped))]
+    total = sum(lens)
+    path = QPainterPath()
+
+    for i, length in enumerate(lens):
+        a = sum(lens[:i]) / total
+        b = (sum(lens[:i]) + length) / total
+        if end <= a or start >= b:
+            continue
+
+        p1, p2 = mapped[i], mapped[i + 1]
+        s = max(start, a)
+        e = min(end, b)
+        sp = p1 + (p2 - p1) * ((s - a) / (b - a))
+        ep = p1 + (p2 - p1) * ((e - a) / (b - a))
+        path.moveTo(sp)
+        path.lineTo(ep)
+
+    painter.drawPath(path)
+
+
+def _drawCheckBoxIndicator(painter, rect, checkState, borderColor, backgroundColor,
+                           foregroundColor=None, progress=1, previousState=None, glyphOpacity=1):
+    """ draw CheckBox indicator """
+    painter.save()
+    painter.setPen(borderColor)
+    painter.setBrush(backgroundColor)
+    painter.drawRoundedRect(rect, 4.5, 4.5)
+
+    if checkState == Qt.Unchecked and not (previousState == Qt.Checked and progress < 1):
+        painter.restore()
+        return
+
+    painter.setOpacity(glyphOpacity)
+    pen = QPen(foregroundColor or _checkBoxIconColor(), max(1.4, rect.width() / 12), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.NoBrush)
+
+    if checkState == Qt.PartiallyChecked:
+        _drawPolyline(painter, rect, [QPointF(15.775, 23.912), QPointF(32.3125, 23.912)])
+    elif checkState == Qt.Checked:
+        p = _CheckBoxIndicatorAnimation.checkInCurve.valueForProgress(progress) if previousState == Qt.Unchecked else 1
+        _drawPolyline(painter, rect, [QPointF(13.3796, 23.0112), QPointF(20.5, 30.1316), QPointF(34.7359, 15.7641)], end=p)
+    else:
+        p = _CheckBoxIndicatorAnimation.checkOutCurve.valueForProgress(progress)
+        _drawPolyline(painter, rect, [QPointF(13.3796, 23.0112), QPointF(20.5, 30.1316), QPointF(34.7359, 15.7641)], start=p)
+
+    painter.restore()
+
+
+def _itemCheckBoxAnimation(delegate, index, option, checkState):
+    key = (id(index.model()), index.internalId(), index.row(), index.column())
+    delegate._checkBoxRects[key] = option.rect
+    ani = delegate._checkBoxAnis.get(key)
+
+    if ani is None:
+        ani = _CheckBoxIndicatorAnimation(lambda k=key: _updateItemCheckBox(delegate, k), delegate)
+        delegate._checkBoxAnis[key] = ani
+
+    previousState = delegate._checkBoxStates.get(key, checkState)
+    if previousState != checkState:
+        ani.start(previousState, checkState)
+        delegate._checkBoxStates[key] = checkState
+
+    return ani
+
+
+def _updateItemCheckBox(delegate, key):
+    rect = delegate._checkBoxRects.get(key)
+    delegate.parent().viewport().update(rect.adjusted(-2, -2, 2, 2) if rect else delegate.parent().viewport().rect())
 
 
 class CheckBox(QCheckBox):
@@ -58,6 +177,9 @@ class CheckBox(QCheckBox):
         self.darkTextColor = QColor(255, 255, 255)
 
         self._states = {}
+        self._checkState = self.checkState()
+        self._indicatorAni = _CheckBoxIndicatorAnimation(self.update, self)
+        self.stateChanged.connect(self._startIndicatorAnimation)
 
     @__init__.register
     def _(self, text: str, parent: QWidget = None):
@@ -108,6 +230,11 @@ class CheckBox(QCheckBox):
             f"CheckBox{{color:{self.lightTextColor.name(QColor.NameFormat.HexArgb)}}}",
             f"CheckBox{{color:{self.darkTextColor.name(QColor.NameFormat.HexArgb)}}}"
         )
+
+    def _startIndicatorAnimation(self, state):
+        state = Qt.CheckState(state)
+        self._indicatorAni.start(self._checkState, state)
+        self._checkState = state
 
     def _borderColor(self):
         if isDarkTheme():
@@ -190,16 +317,8 @@ class CheckBox(QCheckBox):
         opt.initFrom(self)
         rect = self.style().subElementRect(QStyle.SE_CheckBoxIndicator, opt, self)
 
-        # draw shape
-        painter.setPen(self._borderColor())
-        painter.setBrush(self._backgroundColor())
-        painter.drawRoundedRect(rect, 4.5, 4.5)
-
-        if not self.isEnabled():
-            painter.setOpacity(0.8)
-
-        # draw icon
-        if self.checkState() == Qt.Checked:
-            CheckBoxIcon.ACCEPT.render(painter, rect)
-        elif self.checkState() == Qt.PartiallyChecked:
-            CheckBoxIcon.PARTIAL_ACCEPT.render(painter, rect)
+        _drawCheckBoxIndicator(
+            painter, rect, self.checkState(), self._borderColor(), self._backgroundColor(),
+            progress=self._indicatorAni.progress, previousState=self._indicatorAni.previousState,
+            glyphOpacity=0.8 if not self.isEnabled() else 1
+        )

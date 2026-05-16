@@ -3,10 +3,10 @@ from PyQt5.QtCore import Qt, QSize, QRectF, QModelIndex, QEvent
 from PyQt5.QtGui import QPainter, QColor, QPalette, QPainterPath
 from PyQt5.QtWidgets import QTreeWidget, QStyledItemDelegate, QStyle, QTreeView, QApplication, QStyleOptionViewItem
 
-from ...common.style_sheet import FluentStyleSheet, themeColor, isDarkTheme, setCustomStyleSheet
+from ...common.style_sheet import FluentStyleSheet, isDarkTheme, setCustomStyleSheet
 from ...common.font import getFont
 from ...common.color import autoFallbackThemeColor
-from .check_box import CheckBoxIcon
+from .check_box import _drawCheckBoxIndicator, _itemCheckBoxAnimation
 from .scroll_area import SmoothScrollDelegate
 
 
@@ -17,6 +17,9 @@ class TreeItemDelegate(QStyledItemDelegate):
         super().__init__(parent)
         self.lightCheckedColor = QColor()
         self.darkCheckedColor = QColor()
+        self._checkBoxAnis = {}
+        self._checkBoxRects = {}
+        self._checkBoxStates = {}
 
     def setCheckedColor(self, light, dark):
         """ set the color of indicator in checked status
@@ -102,33 +105,29 @@ class TreeItemDelegate(QStyledItemDelegate):
     def _drawCheckBox(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         painter.save()
         checkState = index.data(Qt.CheckStateRole)
+        ani = _itemCheckBoxAnimation(self, index, option, checkState)
 
         isDark = isDarkTheme()
 
-        r = 4.5
         x = option.rect.x() + 23
         y = option.rect.center().y() - 9
         rect = QRectF(x, y, 19, 19)
 
         if checkState == Qt.CheckState.Unchecked:
-            painter.setBrush(QColor(0, 0, 0, 26)
-                             if isDark else QColor(0, 0, 0, 6))
-            painter.setPen(QColor(255, 255, 255, 142)
-                           if isDark else QColor(0, 0, 0, 122))
-            painter.drawRoundedRect(rect, r, r)
+            _drawCheckBoxIndicator(
+                painter, rect, checkState,
+                QColor(255, 255, 255, 142) if isDark else QColor(0, 0, 0, 122),
+                QColor(0, 0, 0, 26) if isDark else QColor(0, 0, 0, 6),
+                progress=ani.progress, previousState=ani.previousState
+            )
         else:
             color = autoFallbackThemeColor(self.lightCheckedColor, self.darkCheckedColor)
-            painter.setPen(color)
-            painter.setBrush(color)
-            painter.drawRoundedRect(rect, r, r)
-
-            if checkState == Qt.CheckState.Checked:
-                CheckBoxIcon.ACCEPT.render(painter, rect)
-            else:
-                CheckBoxIcon.PARTIAL_ACCEPT.render(painter, rect)
+            _drawCheckBoxIndicator(
+                painter, rect, checkState, color, color,
+                progress=ani.progress, previousState=ani.previousState
+            )
 
         painter.restore()
-
 
     def initStyleOption(self, option, index):
         super().initStyleOption(option, index)
