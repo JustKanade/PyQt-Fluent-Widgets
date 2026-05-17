@@ -40,3 +40,4 @@ from .flyout import FlyoutView, FlyoutViewBase, Flyout, FlyoutAnimationType, Fly
 from .tab_view import TabBar, TabItem, TabCloseButtonDisplayMode, TabWidget
 from .pips_pager import PipsPager, VerticalPipsPager, HorizontalPipsPager, PipsScrollButtonDisplayMode
 from .separator import HorizontalSeparator, VerticalSeparator
+from .store_carousel import StoreCarousel, StoreCarouselItem, StoreCarouselEvent
