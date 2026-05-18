@@ -34,6 +34,7 @@ from .tree_view import TreeWidget, TreeView, TreeItemDelegate
 from .cycle_list_widget import CycleListWidget
 from .progress_bar import IndeterminateProgressBar, ProgressBar
 from .progress_ring import ProgressRing, IndeterminateProgressRing
+from .particle import Particle
 from .scroll_bar import ScrollBar, SmoothScrollBar, SmoothScrollDelegate, ScrollBarHandleDisplayMode
 from .teaching_tip import TeachingTip, TeachingTipTailPosition, TeachingTipView, PopupTeachingTip
 from .flyout import FlyoutView, FlyoutViewBase, Flyout, FlyoutAnimationType, FlyoutAnimationManager
